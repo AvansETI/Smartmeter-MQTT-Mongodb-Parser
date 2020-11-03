@@ -15,6 +15,7 @@ class MQTT(object):
     # Mqtt events
     #
     def on_connect(self, mqttc, obj, flags, rc):
+        self.mqttClient.subscribe("smartmeter/raw", 0)
         if rc==0:
             logger.info(msg="MQTT Succesfully connect to broker")
         else:
@@ -55,7 +56,6 @@ class MQTT(object):
         # Setup mqtt and connect to broker
         self.mqttClient.username_pw_set(username=self.appConfig['mqtt']['username'], password=self.appConfig['mqtt']['password'])
         self.mqttClient.connect(self.appConfig['mqtt']['host'], self.appConfig['mqtt']['port'], 10)
-        self.mqttClient.subscribe("smartmeter/raw", 0)
 
         self.mqttClient.loop_start()
 

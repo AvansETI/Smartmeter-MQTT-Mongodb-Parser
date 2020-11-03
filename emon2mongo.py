@@ -25,7 +25,7 @@ def run_program():
                mqtt.run()
            except:
                 logging.info(msg="Cant't connect to Broker, retry in 30 seconds")
-       #time.sleep(30.0)
+       time.sleep(1.0)
        pass
 
 def keyboardInterruptHandler(signal, frame):
