@@ -34,6 +34,13 @@ class SmartMeterDataRaw(Document):
     s1 = DictField(required = False, max_length=1024)
     createdAt = DateTimeField(required = True, default = datetime.utcnow)
 
+class SmartMeterDataDecoded(Document):
+    signature = StringField(required = True, max_length = 128)
+    p1_decoded = DictField(required = False, max_length = 2048)
+    s0 = DictField(required = False, max_length=1024)
+    s1 = DictField(required = False, max_length=1024)
+    createdAt = DateTimeField(required = True, default = datetime.utcnow)
+
 class MongoEngine(object):
     def __init__(self, config: AppConfig):
 
@@ -45,15 +52,17 @@ class MongoEngine(object):
         connect(db = database, host = host, port = port )
 
         self.queue: List[SmartMeterDataRaw] = list()
+        self.decodedqueue: List[SmartMeterDataDecoded] = list()
 
-    def _store_thread(self, emon: SmartMeterDataRaw):
+    def _store_thread(self, emon: SmartMeterDataRaw, emon2: SmartMeterDataDecoded):
         try:
             SmartMeterDataRaw.objects.insert(self.queue, load_bulk=False)
             self.queue.clear()
+            SmartMeterDataDecoded.objects.insert(self.decodedqueue, load_bulk=False)
+            self.decodedqueue.clear()
             logger.debug(msg="Emon.save() succesfull")
         except Exception as e:
             logger.error(msg=("Emon.save() exception: {0}", str(e)))
-
 
     def save(self, json_payload):
 
@@ -71,11 +80,23 @@ class MongoEngine(object):
             # Save to db
             # self.emon.save()
 
+            
+            self.decoded = SmartMeterDataDecoded(
+                p1_decoded = self.emon.p1_decoded,
+                signature = json_payload['datagram']['signature'],
+                s0 = json_payload['datagram']['s0'],
+                s1 = json_payload['datagram']['s1']
+            )
+            self.decodedqueue.append(self.decoded)
+
             # Queue multiple documents and try to save
             self.queue.append(self.emon)
-            thread = threading.Thread(target=self._store_thread, args=(self.queue, ))
+            thread = threading.Thread(target=self._store_thread, args=(self.queue, self.decodedqueue, ))
             thread.daemon = True
             thread.start()
+
+
+            
 
         except Exception as str:
             logger.error(msg=("Emon.save() exception: {0}", str))
